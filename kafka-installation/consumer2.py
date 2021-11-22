@@ -30,7 +30,7 @@ if __name__ == '__main__':
     for user in consumer:
         dict = json.loads(user.value)
         df = pd.DataFrame([dict])
-        path = 'C:/Users/Milica/Desktop/Thing-solver-project/minio/records/user' + str(calendar.timegm(time.gmtime())) + '.json'
+        path = '../minio/records/user' + str(calendar.timegm(time.gmtime())) + '.json'
         df.to_json(path, orient='records')
         with open(path, 'rb') as file:
             statdata = os.stat(path)
