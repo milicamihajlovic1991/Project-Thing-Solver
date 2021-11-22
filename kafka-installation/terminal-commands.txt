@@ -1,0 +1,19 @@
+__author__ = 'Milica Mihajlovic, milicamihajlovic1991@gmail.com'
+__version__ = '1.0'
+__desc__ = """Following commands are for creating kafka and zookeeper containers using docker.
+                Additional commands for topic, producer, consumer and topic content """
+
+cd  C:\Users\Milica\Desktop\Thing-solver-project\kafka-installation
+# docker ps
+docker-compose up -d
+docker exec -it kafka /bin/sh
+cd opt
+ls
+cd kafka_2.13-2.7.1
+./bin/kafka-topics.sh --create --zookeeper zookeeper:2181 --replication-factor 1 --partitions 1 --topic user_topic
+
+# install this before running the data.py, producer.py and consumer2.py
+pip install kafka-python
+pip install Faker
+
+

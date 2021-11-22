@@ -1,0 +1,87 @@
+__author__ = 'Milica Mihajlovic, milicamihajlovic1991@gmail.com'
+__version__ = '1.0'
+__desc__ = 'Following commands are for creating spark container, how to run master container and do the analysis'
+
+cd C:\Users\Milica\Desktop\Thing-solver-project\spark
+# docker-compose up -d
+docker ps
+docker exec -it e0cfc27c4411 /bin/bash # container_id of master
+cd /files/
+ls
+
+cd /opt/bitnami/spark
+# we want to run spark-shell
+bin/spark-shell spark://e0cfc27c4411:7077 # spark://e0cfc27c4411:7077 - info from localost:8080
+
+# Scala:
+import spark.implicits._
+import spark.sql
+import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql.functions.udf
+import org.apache.spark.sql.functions.regexp_replace
+
+
+# import java.net.URL
+# import org.apache.spark.SparkFiles
+# different option were tried: spark.sparkContext.addFile(urlfile), read.json(), ZipInputStream, FileInputStream and etc.
+# import inside the job doesn't work because the file is .zip
+# file is downloaded manually, unzipped locally in directory which is mounted
+
+val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+val df = sqlContext.read.json("/files/marketing_sample_for_careerbuilder_usa-careerbuilder_job_listing__20200401_20200630__30k_data.ldjson")
+
+df.createOrReplaceTempView("jobs")
+
+# 1st question
+val number_of_jobs = spark.sql("SELECT city, post_date, count(distinct url) as number_of_jobs  FROM jobs group by city, post_date")
+number_of_jobs.show()
+
+# duplicate_status is always NA but there are duplicted rows:
+# val test = spark.sql("SELECT * FROM jobs where city = 'Windsor' and post_date = '2020-06-19'")
+# test.show()
+# val test2 = spark.sql("SELECT distinct uniq_id, url FROM jobs where city = 'Windsor' and post_date = '2020-06-19'")
+# test2.show()
+# val test3 = spark.sql("SELECT city, post_date, count(distinct url) as c1, count(distinct uniq_id) as c2 from jobs group by city, post_date having count(distinct url)!=count(distinct uniq_id)")
+# test3.show()
+
+# 2nd question
+# salary is not a number
+# idea was to split salary_offered column, pull out the numbers and calculate on monthly level salary, row by row, but there are too many distinct values for salary unit
+val test = spark.sql("SELECT distinct inferred_salary_time_unit from jobs where salary_offered!= ''")
+test.show()
+
+# if the salary was a number query should look like this:
+val average_salary = spark.sql("SELECT state, job_title, avg(salary_offered) as average_salary FROM jobs group by state, job_title")
+average_salary.show()
+
+# 3rd question
+# job_title can be the same for different URLs, suppose that it is ok, same title but different seniority
+# assume that position is equal to one URL
+
+# identify the top 10 most active companies by number of positions opened:
+val top10_companies = spark.sql("SELECT company_name FROM (SELECT company_name, count(distinct url) as num_jobs FROM jobs group by company_name order by count(distinct url) DESC) limit 10")
+top10_companies.show()
+
+# if "number of positions opened" means that we should count top 10 companies by number of opened (not expired) positions:
+# val test1 = spark.sql("SELECT distinct has_expired from jobs ")
+# test1.show()
+# val test2 = spark.sql("SELECT distinct last_expiry_check_date from jobs order by last_expiry_check_date desc")
+# test2.show()
+# val test3 = spark.sql("SELECT distinct valid_through from jobs order by valid_through desc")
+# test3.show()
+# has_expired is false for every row but at this point all positions are expired, if we pretend to be in june 2020 (2020-06-30) we can find positions that are opened(not expired)
+val top10_companies = spark.sql("SELECT company_name FROM (SELECT company_name, count(distinct url) as num_jobs FROM jobs where has_expired = 'false' or valid_through > '2020-06-30' group by company_name order by count(distinct url) DESC) limit 10")
+top10_companies.show()
+
+# 4th question
+val replaceudf = udf((data: String )=>data.replaceAll("<.+?>", ""))
+spark.udf.register("replaceudf", replaceudf)
+var clean = spark.sql("SELECT replaceudf(html_job_description) as job_description from jobs")
+clean.show()
+
+# export to csv, one example, the same is for other queries, idea is to export into directory "files" which is mounted with local directory
+var number_of_jobs = sqlContext.sql("SELECT city, post_date, count(distinct url) as number_of_jobs  FROM jobs group by city, post_date")
+number_of_jobs.coalesce(1).write.csv("/files/number_of_jobs.csv")
+
+
+

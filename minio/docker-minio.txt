@@ -1,0 +1,17 @@
+__author__ = 'Milica Mihajlovic, milicamihajlovic1991@gmail.com'
+__version__ = '1.0'
+__desc__ = """Following commands are for creating minio1 container and
+               starting container that is already created """
+
+docker run ^
+ -p 9000:9000 ^
+ -p 9001:9001 ^
+ --name minio1 ^
+ -v C:\Users\Milica\Desktop\Thing-solver-project\minio\data:/data ^
+ -e "MINIO_ROOT_USER=minio" ^
+ -e "MINIO_ROOT_PASSWORD=minio123" ^
+ -e "MINIO_ACCESS_KEY=testkey" ^
+ -e "MINIO_SECRET_KEY=testsecret" ^
+ quay.io/minio/minio server /data --console-address ":9001"
+
+docker container start 78cfaa6457b4
